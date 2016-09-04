@@ -6,20 +6,63 @@
 
 let s:dPattern = logview#ExportScriptVar('dPattern')
 
-" GotoLineBeginning:
+" GotoCmdBol:
 " jump to the beginning of the line but next to leading marker #$:
-function! logcedit#GotoLineBeginning() "{{{
-    let l:linestr = getline('.')
-    if empty(l:linestr)
-        return
-    endif
-
+" suggest map is: H I <C-A>
+function! logcedit#GotoCmdBol() "{{{
     if logview#Executable()
         normal! ^w
+    elseif logview#OnOutput()
+        call logview#JumptoCommadLine('', 'bW')
     else
         normal! ^
     endif
+endfunction "}}}
 
+" GotoCmdEol:
+" jump to the end of the line but next to leading marker #$:
+" suggest map is: L A <C-E>
+function! logcedit#GotoCmdEol() "{{{
+    if logview#Executable()
+        normal! $
+    elseif logview#OnOutput()
+        call logview#JumptoCommadLine('', 'bW')
+        normal! $
+    else
+        normal! $
+    endif
+endfunction "}}}
+
+" OpenCmdAbove:
+" open a new line with last command lead above the head line
+function! logcedit#OpenCmdAbove() "{{{
+    let l:leadstr = b:dLastCmd.lead . ' '
+    if logview#Executable()
+        execute 'normal! O' . l:leadstr
+    elseif logview#OnOutput()
+        call logview#JumptoCommadLine('', 'bW')
+        execute 'normal! O' . l:leadstr
+    else
+        normal! O
+    endif
+endfunction "}}}
+
+" OpenCmdBelow:
+" open a new line with last command lead below output stop line
+function! logcedit#OpenCmdBelow() "{{{
+    let l:leadstr = b:dLastCmd.lead . ' '
+    let l:type = logview#GetLineType(line('.'))
+    if empty(l:type)
+        normal! o
+    else
+        if l:type !=# logview#ExportScriptVar('output_stop')
+            call logview#JumptoOutputEdge('.', 'W')
+        endif
+        execute 'normal! o' . l:leadstr
+    endif
+endfunction "}}}
+
+function! logcedit#MationPipe(...) "{{{
 endfunction "}}}
 
 " SelectPipe:
@@ -86,6 +129,15 @@ function! logcedit#SelectPipe() "{{{
 
     let l:len = l:selend - l:selbeg
     execute 'normal! v' . l:len . 'l'
+endfunction "}}}
+
+function! logcedit#LastCmdLead(...) "{{{
+endfunction "}}}
+
+function! logcedit#LastCmdLine(...) "{{{
+endfunction "}}}
+
+function! logcedit#LookupCmdLine(...) "{{{
 endfunction "}}}
 
 " <C-P> <C-N>

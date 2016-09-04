@@ -58,7 +58,7 @@ function! logview#GetLineType(linenr) "{{{
     let l:cLeader = matchstr(l:linestr, s:dPattern.leader)
 
     if empty(l:cLeader)
-        let [l:start, l:stop] = FindOutputRange(l:iLine)
+        let [l:start, l:stop] = s:FindOutputRange(l:iLine)
         if l:start > 0 && l:stop > 0
             if l:linestr =~# s:dPattern.start
                 let l:cLeader = '='
@@ -76,18 +76,36 @@ endfunction "}}}
 " Executable: check if current is in-file command line
 function! logview#Executable() "{{{
     let l:linenr = line('.')
-    let l:lead = matchstr(l:linestr, s:dPattern.leader)
+    let l:lead = matchstr(getline(l:linenr), s:dPattern.leader)
     if empty(l:lead)
         return v:false
     else
         return v:true
     endif
 endfunction "}}}
+function! logview#OnOutput() "{{{
+    let l:linenr = line('.')
+    let l:lead = logview#GetLineType(l:linenr)
+    if l:lead ==# '=' || l:lead ==# '.' || l:lead ==# '<'
+        return v:true
+    else
+        return v:false
+    endif
+endfunction "}}}
+function! logview#InOutput() "{{{
+    let l:linenr = line('.')
+    let l:lead = logview#GetLineType(l:linenr)
+    if l:lead ==# '<'
+        return v:true
+    else
+        return v:false
+    endif
+endfunction "}}}
 
 " GetCmdLead: 
 function! logview#GetCmdLead() "{{{
     let l:linenr = line('.')
-    let l:lead = matchstr(l:linestr, s:dPattern.leader)
+    let l:lead = matchstr(getline(l:linenr), s:dPattern.leader)
     return l:lead
 endfunction "}}}
 
@@ -109,7 +127,7 @@ endfunction "}}}
 " include(i) or exclude(a) mode is depend on the cursor postion
 function! logview#SelectOutput() "{{{
     let l:curline = line('.')
-    let [l:start, l:stop] = FindOutputRange(l:curline)
+    let [l:start, l:stop] = s:FindOutputRange(l:curline)
 
     if l:start <= 0 || l:stop <= 0
         return "\<ESC>"
@@ -271,7 +289,7 @@ function! s:FindOutputRange(linenr) "{{{
             break
         endif
         " first find stop line '.'
-        if l:text =~# s:dPattern.stop
+        if l:text =~# s:dPattern.stop && l:index != a:linenr
             break
         endif
     endfor
@@ -289,7 +307,7 @@ function! s:FindOutputRange(linenr) "{{{
             break
         endif
         " first find start line
-        if l:text =~# s:dPattern.start
+        if l:text =~# s:dPattern.start && l:index != a:linenr
             break
         endif
     endfor

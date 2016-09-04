@@ -24,30 +24,39 @@ function! logecmd#InRunCommand(...) "{{{
     endif
 
     let l:lead = l:linestr[0]
+    let l:ret = v:false
 
+    " run command by lead
     if l:lead ==# s:dCommander.rshell || l:lead ==# s:dCommander.ushell
         " has '>' redirection char, open a new buffer
         let l:redircmd = matchlist(l:cmdstr, s:dPattern.redircmd)
         if len(l:redircmd) > 1
-            return s:ExectueInNewBuff(l:first_char, l:redircmd)
+            let l:ret = s:ExectueInNewBuff(l:lead, l:redircmd)
         else
-            return s:DoShellCmd(l:linenr, l:cmdstr)
+            let l:ret = s:DoShellCmd(l:linenr, l:cmdstr)
         endif
 
     elseif l:lead ==# s:dCommander.vim
         let l:cmd = l:cmdstr
         execute l:cmd
-        return v:true
+        let l:ret = v:true
 
     else
         echoerr 'unexpected command leading marker: ' . l:cLeader
-        return v:false
+        let l:ret = v:false
     endif
 
+    " save last command
+    if l:ret == v:true
+        let b:dLastCmd.lead = l:lead
+        let b:dLastCmd.line = l:linestr
+    endif
+
+    return l:ret
 endfunction "}}}
 
 " NormalEnter: <CR> run current line command if possible
-function! s:NormalEnter() "{{{
+function! logecmd#NormalEnter() "{{{
     let l:lead = matchstr(getline('.'), s:dPattern.leader)
     if empty(l:lead)
         return v:false
