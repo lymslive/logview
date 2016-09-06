@@ -11,11 +11,15 @@ let s:output_start = repeat('=', 75) . ' <<'
 let s:output_stop = '.'
 
 let s:dCommander = {'vim': ':', 'rshell': '#', 'ushell': '$', 'math': '%'}
+let s:lCommander = ':#$%'
 
 " Pattern Define:
 let s:dPattern = {}
+" match lead part
 let s:dPattern.leader = '^[:#$%]\ze\s*'
+" only match lead
 let s:dPattern.valid = '^[:#$%]\s\?$'
+" match output frame line
 let s:dPattern.start = '^' . s:output_start
 let s:dPattern.stop = '^\.$'
 " match pure command string, remove leadmark
@@ -104,8 +108,7 @@ endfunction "}}}
 
 " GetCmdLead: 
 function! logview#GetCmdLead() "{{{
-    let l:linenr = line('.')
-    let l:lead = matchstr(getline(l:linenr), s:dPattern.leader)
+    let l:lead = matchstr(getline('.'), s:dPattern.leader)
     return l:lead
 endfunction "}}}
 
@@ -165,7 +168,7 @@ function! logview#JumptoCommadLine(...) "{{{
     endif
 
     " try to use the command marker in current line
-    if empty(l:cmdmark)
+    if empty(l:cmdmark) || l:cmdmark ==# '0'
         let l:cmdmark = matchstr(getline('.'), s:dPattern.leader)
     endif
 

@@ -6,8 +6,8 @@
 
 let s:dPattern = logview#ExportScriptVar('dPattern')
 
-" GotoCmdBol:
-" jump to the beginning of the line but next to leading marker #$:
+" GotoCmdBol: goto beginning of command line "{{{1
+" but next to leading marker #$:
 " suggest map is: H I <C-A>
 function! logcedit#GotoCmdBol() "{{{
     if logview#Executable()
@@ -19,8 +19,7 @@ function! logcedit#GotoCmdBol() "{{{
     endif
 endfunction "}}}
 
-" GotoCmdEol:
-" jump to the end of the line but next to leading marker #$:
+" GotoCmdEol: goto end of command line "{{{1
 " suggest map is: L A <C-E>
 function! logcedit#GotoCmdEol() "{{{
     if logview#Executable()
@@ -33,8 +32,8 @@ function! logcedit#GotoCmdEol() "{{{
     endif
 endfunction "}}}
 
-" OpenCmdAbove:
-" open a new line with last command lead above the head line
+" OpenCmdAbove: open new command line above this block "{{{1
+" above current head command line, atuo insert last lead mark
 function! logcedit#OpenCmdAbove() "{{{
     let l:leadstr = b:dLastCmd.lead . ' '
     if logview#Executable()
@@ -47,8 +46,8 @@ function! logcedit#OpenCmdAbove() "{{{
     endif
 endfunction "}}}
 
-" OpenCmdBelow:
-" open a new line with last command lead below output stop line
+" OpenCmdBelow: open new command line below this block "{{{1
+" below output stop line, atuo insert last lead mark
 function! logcedit#OpenCmdBelow() "{{{
     let l:leadstr = b:dLastCmd.lead . ' '
     let l:type = logview#GetLineType(line('.'))
@@ -62,10 +61,119 @@ function! logcedit#OpenCmdBelow() "{{{
     endif
 endfunction "}}}
 
-function! logcedit#MationPipe(...) "{{{
+" InputLastCmd: smart insert last command's lead or full line "{{{1
+" > a:key, the trigger key in insert mode, will insert itself when needed
+function! logcedit#InputLastCmd(key) "{{{
+    let l:linenr = line('.')
+    let l:linestr = getline('.')
+
+    if empty(l:linestr)
+        return b:dLastCmd.lead . ' '
+    elseif !logview#Executable()
+        return a:key
+    else
+        if logview#IsValidLead(l:linestr)
+            call setline(l:linenr, b:dLastCmd.line)
+            return "\<End>"
+        else
+            return a:key
+        endif
+    endif
+
+    return v:false
 endfunction "}}}
 
-" SelectPipe:
+" RemoveCmdLine: <C-U> remove line to command lead "{{{1
+" but if only has command lead, remove full line
+function! logcedit#RemoveCmdLine() "{{{
+    if !logview#Executable()
+        return "\<C-U>"
+    endif
+
+    let l:linestr = getline('.')
+    if logview#IsValidLead(l:linestr)
+        return "\<C-U>"
+    endif
+
+    let l:lead = logview#GetCmdLead()
+    call setline('.', l:lead . ' ')
+    return "\<End>"
+endfunction "}}}
+
+" SwitchCmdLead: switch command lead in [:#$%] "{{{1
+" > a:lead, specify the command lead will be replaced to
+"   when a:lead is empty or '0', cycle switch [:#$%] in turn
+"   when current line has no lead, the lead is inserted and with a space
+function! logcedit#SwitchCmdLead(lead) "{{{
+    let l:line = line('.')
+    let l:col = col('.')
+    let l:linestr = getline('.')
+    let l:curlead = logview#GetCmdLead()
+
+    let l:shift = 0
+    if empty(a:lead) || a:lead ==# '0'
+        let l:lCommander = logview#ExportScriptVar('lCommander')
+        if empty(l:curlead)
+            let l:linestr = l:lCommander[0] . ' ' . l:linestr
+            let l:shift = 2
+        else
+            let l:index = stridx(l:lCommander, l:curlead)
+            if l:index == -1
+                return v:false
+            endif
+            if l:index >= len(l:lCommander) - 1
+                let l:index = 0
+            else
+                let l:index += 1
+            endif
+            let l:newlead = l:lCommander[l:index]
+            let l:linestr = l:newlead . l:linestr[1:]
+        endif
+
+    else
+        if !logview#IsValidLead(a:lead[0])
+            return v:false
+        endif
+
+        if empty(l:curlead)
+            let l:linestr = a:lead[0] . ' ' . l:linestr
+            let l:shift = 2
+        else
+            let l:linestr = a:lead[0] . l:linestr[1:]
+        endif
+    endif
+
+    call setline('.', l:linestr)
+    if l:shift > 0
+        execute 'normal! ' . (0+l:shift) . 'l'
+    endif
+
+    return ''
+endfunction "}}}
+
+" NextPipe: move to the next pipe in command line and wrap in eol "{{{1
+" suggest nnoremap <bar>, can prefix count in normal '|' command
+function! logcedit#NextPipe() range "{{{
+    let l:count = a:lastline - a:firstline + 1
+    let l:oldbar = 'normal! ' . (0+l:count) . '|'
+
+    if logview#Executable() == v:false || getline('.') !~# '|'
+        execute l:oldbar
+        return v:false
+    endif
+
+    if l:count <= 1
+        let l:ret = search('|', '', line('.'))
+        if l:ret == 0
+            normal! ^
+            let l:ret = search('|', '', line('.'))
+        endif
+    else
+        execute 'normal! ^' . (0+l:count) . 'f|'
+    endif
+endfunction "}}}
+
+" SelectPipe: select a piped command line part "{{{1
 " assume command line format # cmd1 arg | cmd2 args | ...
 " select a pipe part, include '|' char if cursor on it
 function! logcedit#SelectPipe() "{{{
@@ -131,85 +239,133 @@ function! logcedit#SelectPipe() "{{{
     execute 'normal! v' . l:len . 'l'
 endfunction "}}}
 
-function! logcedit#LastCmdLead(...) "{{{
-endfunction "}}}
+" InputPipe: imap <bar> "{{{1
+function! logcedit#InputPipe() "{{{
+    let l:linenr = line('.')
+    let l:colnr = col('.')
+    let l:linestr = getline('.')
 
-function! logcedit#LastCmdLine(...) "{{{
-endfunction "}}}
-
-function! logcedit#LookupCmdLine(...) "{{{
-endfunction "}}}
-
-" <C-P> <C-N>
-" TODO: now only support press once
-function! logcedit#IRetriveCommand(direction) "{{{
-    let l:start = line('.')
-
-    let l:lastcmd = s:GetLastCommandLine('', a:direction, l:start)
-    if empty(l:lastcmd.mark) || l:lastcmd.line == 0
-        return ''
+    if !logview#Executable()
+        return '|'
     endif
 
-    let l:curlinestr = getline('.')
-    if l:curlinestr !=# l:lastcmd.text
-        call setline('.', l:lastcmd.text)
-    endif
+    if logview#IsValidLead(l:linestr)
+        " only lead before, backward search a command line
+        let b:last_search_line = line('.')
+        let b:last_search_text = l:linestr
+        let l:foundcmd = s:SearchCommandLine(l:linestr[0], -1)
+        if l:foundcmd == 0
+            return ''
+        else
+            let l:foundstr = getline(l:foundcmd)
+            if l:linestr !=# l:foundstr
+                call setline('.', l:foundstr)
+            endif
 
-    return "\<End>"
-endfunction "}}}
+            let l:linestr = getline('.')
+            if l:linestr[-1] !=# '|'
+                return "\<End>|"
+            else
+                return "\<End>"
+            endif
+        endif
 
-" input last command mark '#$:', bind to `nnoremap o`
-function! logcedit#IRepeatLastCmdMark() "{{{
-    let l:start = line('.')
+    elseif l:colnr >= col('$') && l:linestr[col('$')-1-1] == '|'
+        " input repeated | in the end, remove the last pipe part
+        normal hxd|
+        return "\<End>"
 
-    let l:pattern = s:dPattern.leader
-    let l:target = search(l:pattern, 'bnW')
-    if l:target <= 0
-        let l:mark = '#'
     else
-        let l:linestr = getline(l:target)
-        let l:mark = l:linestr[0]
+        return '|'
     endif
-
-    return l:mark . ' '
 endfunction "}}}
 
-function! s:GetLastCommandLine(marker, direction, start) "{{{
-    " returned data struct
-    let l:ret = {'line':0, 'mark':'', 'text':''}
+" OnInsertEnter: reset command line search cycle "{{{1
+function! logcedit#OnInsertEnter() "{{{
+    let b:last_search_line = 0
+    let b:last_search_text = ''
+endfunction "}}}
 
-    let l:cmdmark = a:marker
-    if empty(l:cmdmark)
-        let l:cmdmark = logview#GetCmdLead()
-    endif
-
-    if logview#IsValidLead(l:cmdmark) == v:false
-        return l:ret
-    endif
-
-    let l:ret.mark = l:cmdmark
-    let l:pattern = '^' . l:cmdmark
-
+" IRetriveCommand: <C-P> <C-N> "{{{1
+" search a command line in file from current line
+function! logcedit#IRetriveCommand(direction) "{{{
     " default search forward
     let l:direction = 1
     if a:direction == -1
         let l:direction = -1
     endif
 
-    let l:end = line('$')
-    let l:index = a:start
+    " not triggered from command line
+    if !logview#Executable()
+        let b:last_search_line = 0
+        return a:direction == 1 ? "\<Down>" : "\<Up>"
+    endif
 
+    " set b:last_search_line and b:last_search_text
+    if b:last_search_line == 0
+        let b:last_search_line = line('.')
+    endif
+
+    " the current line in only contain lead, but no command string
+    let l:curlinestr = getline('.')
+    if empty(b:last_search_text) || logview#IsValidLead(l:curlinestr)
+        let b:last_search_text = l:curlinestr
+    endif
+
+    " search a matched command line and save line number
+    let l:lead = logview#GetCmdLead()
+    let l:foundcmd = s:SearchCommandLine(l:lead, a:direction)
+    if l:foundcmd == 0
+        return ''
+    else
+        let b:last_search_line = l:foundcmd
+    endif
+
+    " insert the result line to current line
+    let l:foundstr = getline(l:foundcmd)
+    if l:curlinestr !=# l:foundstr
+        call setline('.', l:foundstr)
+    endif
+
+    return "\<End>"
+endfunction "}}}
+
+" SearchCommandLine: repeated search a command line "{{{1
+" > a:marker, the command lead marker
+" > a:direction, forward(1) or backward(-1)
+" buffer variables matters:
+" > b:last_search_line, last searched line number
+" > b:last_search_text, the front part of line must match this string
+function! s:SearchCommandLine(marker, direction) "{{{
+    if logview#IsValidLead(a:marker) == v:false
+        return 0
+    endif
+
+    let l:pattern = '^' . a:marker
+
+    let l:end = line('$')
+    let l:index = b:last_search_line
+
+    let l:ret = 0
     while v:true
-        let l:index += l:direction
+        let l:index += a:direction
         if l:index < 1 || l:index > l:end
             break
         endif
+
         let l:linestr = getline(l:index)
-        if l:linestr =~# l:pattern
-            let l:ret.line = l:index
-            let l:ret.text = l:linestr
-            break
+        if l:linestr !~# l:pattern || len(l:linestr) < len(b:last_search_text)
+            continue
         endif
+
+        let l:front = strpart(l:linestr, 0, len(b:last_search_text))
+        if l:front !=# b:last_search_text
+            continue
+        endif
+
+        " finish search once time
+        let l:ret = l:index
+        break
     endwhile
 
     return l:ret

@@ -8,7 +8,7 @@
 let s:dCommander = logview#ExportScriptVar('dCommander')
 let s:dPattern = logview#ExportScriptVar('dPattern')
 
-" Run Infile Command:
+" Run Infile Command: "{{{1
 " > a:1, line number or default currnet line
 function! logecmd#InRunCommand(...) "{{{
     if a:0 > 0 && a:1 > 0
@@ -39,6 +39,12 @@ function! logecmd#InRunCommand(...) "{{{
     elseif l:lead ==# s:dCommander.vim
         let l:cmd = l:cmdstr
         execute l:cmd
+        let l:ret = v:true
+
+    elseif l:lead ==# s:dCommander.math
+        " simpley math calculate, use echo only
+        let l:cmd = l:cmdstr
+        execute 'echo ' . l:cmd
         let l:ret = v:true
 
     else
@@ -72,6 +78,63 @@ function! logecmd#InsertEnter() "{{{
     else
         return "\<CR>"
     endif
+endfunction "}}}
+
+" ReadCommand: append command line in file and execute it "{{{1
+" suggest custom command defined
+" :command READ logecmd#ReadCommand(<q-args>)
+function! logecmd#ReadCommand(cmdstr) "{{{
+    if empty(a:cmdstr)
+        return v:false
+    endif
+
+    let l:cmdstr = '# ' . a:cmdstr
+    call append('$', l:cmdstr)
+    normal! G
+    call logecmd#InRunCommand(line('$'))
+endfunction "}}}
+
+" TransferCommand: change a 'r !' command to the above READ command "{{{1
+" recognize vim command:
+" :! shell-commnd
+" :r filename[s]
+" :r ! shell-commnd
+" the space after 'r' is needed, but that after '!' is optional
+function! logecmd#TransferCommand(custom) "{{{
+    if getcmdtype() !=# ':'
+        return ''
+    endif
+
+    if empty(a:custom)
+        let l:custom = 'READ'
+    else
+        let l:custom = a:custom
+    endif
+
+    let l:cmdstr = getcmdline()
+    let l:cmdstr = substitute(l:cmdstr, '^\s*', '', '')
+
+    if l:cmdstr =~# '^!\s*\S.*$'
+        let l:cmdright = matchstr(l:cmdstr, '^!\s*\zs.*$')
+        let l:cmdnew = l:custom . ' ' . l:cmdright
+
+    elseif l:cmdstr =~# 'r\s\+!\?\s*\S.*$'
+        let l:cmdpart = matchlist(l:cmdstr, 'r\s\+\(!\?\)\s*\(\S.*\)$')
+        let l:bang = l:cmdpart[1]
+        let l:cmdright = l:cmdpart[2]
+        if empty(l:bang)
+            " :r filename
+            let l:cmdnew = l:custom . ' ' . 'cat ' . l:cmdright
+        else
+            " :r !shell command
+            let l:cmdnew = l:custom . ' ' . l:cmdright
+        endif
+        
+    else
+        let l:cmdnew = l:cmdstr
+    endif
+
+    return l:cmdnew
 endfunction "}}}
 
 " PrepareOutput: "{{{1
@@ -177,3 +240,4 @@ function! s:DoShellCmd(linenr, cmdstr) "{{{
 
     return v:true
 endfunction "}}}
+
