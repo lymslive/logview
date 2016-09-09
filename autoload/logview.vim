@@ -78,8 +78,13 @@ function! logview#GetLineType(linenr) "{{{
 endfunction "}}}
 
 " Executable: check if current is in-file command line
-function! logview#Executable() "{{{
-    let l:linenr = line('.')
+function! logview#Executable(...) "{{{
+    if a:0 > 0 && a:1 > 0
+        let l:linenr = a:1
+    else
+        let l:linenr = line('.')
+    endif
+
     let l:lead = matchstr(getline(l:linenr), s:dPattern.leader)
     if empty(l:lead)
         return v:false

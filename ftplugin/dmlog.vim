@@ -99,5 +99,18 @@ nnoremap <buffer> yy @=logview#Executable()? 'yyGp' : 'yy'<CR>
 command! -buffer -nargs=+ READ call logecmd#ReadCommand(<q-args>)
 cnoremap <buffer> <C-G> <C-\>e logecmd#TransferCommand('READ')<CR>
 
+" add piped grep command, with 3 aurgs
+" a:1 word, a:1 back replace origin pipe, a:3 where put new command
+command! -buffer -nargs=+ PipeGrep call logerout#PipeGrep(<f-args>)
+" map, pipe grep current word
+nnoremap <buffer> gr :PipeGrep <C-R>=expand('<cword>')<CR> 0 1<CR>
+nnoremap <buffer> gR :PipeGrep <C-R>=expand('<cword>')<CR> 1 1<CR>
+vnoremap <buffer> gr ygv:<C-\>e (visualmode() !=# 'v')? "'<,'>" : 'PipeGrep ' . getreg() .  ' 0 1'<CR>
+vnoremap <buffer> gR ygv:<C-\>e (visualmode() !=# 'v')? "'<,'>" : 'PipeGrep ' . getreg() .  ' 1 1'<CR>
+
+" read a file in new tab buffer, use cat command
+command! -buffer -nargs=? CatFile call logerout#CatFile(<f-args>)
+nnoremap <buffer> gF :CatFile<CR>
+
 finish
 ===============
