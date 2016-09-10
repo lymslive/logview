@@ -4,11 +4,21 @@
 " Last Modified: 2016-08-31
 
 " Load Control: "{{{1
+let s:thispath = fnamemodify(expand("<sfile>"), ":p:h")
+if filereadable(s:thispath . '/' . 'setlocal.vim') 
+    if fnamemodify(expand("<sfile>"), ":t:r") !=? 'setlocal'
+        execute 'source ' . s:thispath . '/' . 'setlocal.vim'
+        finish
+    endif
+endif
+
 let s:debug = 1
 if exists('b:logview_ftplugin_loaded') && !exists('s:debug')
     finish
 endif
 let s:logview_ftplugin_loaded = 1
+
+set foldmethod=manual
 
 " Buffer Data: "{{{1
 let b:file_ext = expand('%:t:e')
